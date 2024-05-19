@@ -2,7 +2,7 @@ name: Build and publish container
 
 on:
   push:
-    branches: [master]
+  pull_request:
   workflow_dispatch:
     inputs:
       reason:
@@ -29,7 +29,7 @@ jobs:
       - name: Log-in to ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build and push container image
+      - name: Build
         run: |
           IMAGE_ID=$(echo ghcr.io/${{ github.repository }} | tr '[A-Z]' '[a-z]')
           # Strip git ref prefix from version
@@ -41,6 +41,15 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           # Build and Publish container image
-          docker buildx build --push \
+          docker buildx build \
+          --tag $IMAGE_ID:$VERSION \
+          --platform linux/amd64,linux/arm/v7,linux/arm64 .
+      - name: Push
+        if: github.ref == 'refs/heads/master'
+        run: |
+          IMAGE_ID=$(echo ghcr.io/${{ github.repository }} | tr '[A-Z]' '[a-z]')
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          run docker buildx build --push \
           --tag $IMAGE_ID:$VERSION \
           --platform linux/amd64,linux/arm/v7,linux/arm64 .
